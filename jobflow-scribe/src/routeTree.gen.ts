@@ -14,6 +14,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as AuthenticatedCareerOptionsRouteImport } from './routes/_authenticated/career-options'
+import { Route as AuthenticatedCareerSuggesterRouteImport } from './routes/_authenticated/career-suggester'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedFollowUpRouteImport } from './routes/_authenticated/follow-up'
 import { Route as AuthenticatedGapsRouteImport } from './routes/_authenticated/gaps'
@@ -49,6 +50,12 @@ const AuthenticatedCareerOptionsRoute =
   AuthenticatedCareerOptionsRouteImport.update({
     id: '/career-options',
     path: '/career-options',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedCareerSuggesterRoute =
+  AuthenticatedCareerSuggesterRouteImport.update({
+    id: '/career-suggester',
+    path: '/career-suggester',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
@@ -117,6 +124,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
   '/career-options': typeof AuthenticatedCareerOptionsRoute
+  '/career-suggester': typeof AuthenticatedCareerSuggesterRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/follow-up': typeof AuthenticatedFollowUpRoute
   '/gaps': typeof AuthenticatedGapsRoute
@@ -134,6 +142,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
   '/career-options': typeof AuthenticatedCareerOptionsRoute
+  '/career-suggester': typeof AuthenticatedCareerSuggesterRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/follow-up': typeof AuthenticatedFollowUpRoute
   '/gaps': typeof AuthenticatedGapsRoute
@@ -153,6 +162,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
   '/_authenticated/career-options': typeof AuthenticatedCareerOptionsRoute
+  '/_authenticated/career-suggester': typeof AuthenticatedCareerSuggesterRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/follow-up': typeof AuthenticatedFollowUpRoute
   '/_authenticated/gaps': typeof AuthenticatedGapsRoute
@@ -172,6 +182,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/signup'
     | '/career-options'
+    | '/career-suggester'
     | '/dashboard'
     | '/follow-up'
     | '/gaps'
@@ -189,6 +200,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/signup'
     | '/career-options'
+    | '/career-suggester'
     | '/dashboard'
     | '/follow-up'
     | '/gaps'
@@ -207,6 +219,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/signup'
     | '/_authenticated/career-options'
+    | '/_authenticated/career-suggester'
     | '/_authenticated/dashboard'
     | '/_authenticated/follow-up'
     | '/_authenticated/gaps'
@@ -262,6 +275,13 @@ declare module '@tanstack/react-router' {
       path: '/career-options'
       fullPath: '/career-options'
       preLoaderRoute: typeof AuthenticatedCareerOptionsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/career-suggester': {
+      id: '/_authenticated/career-suggester'
+      path: '/career-suggester'
+      fullPath: '/career-suggester'
+      preLoaderRoute: typeof AuthenticatedCareerSuggesterRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/dashboard': {
@@ -346,6 +366,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedCareerOptionsRoute: typeof AuthenticatedCareerOptionsRoute
+  AuthenticatedCareerSuggesterRoute: typeof AuthenticatedCareerSuggesterRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedFollowUpRoute: typeof AuthenticatedFollowUpRoute
   AuthenticatedGapsRoute: typeof AuthenticatedGapsRoute
@@ -361,6 +382,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCareerOptionsRoute: AuthenticatedCareerOptionsRoute,
+  AuthenticatedCareerSuggesterRoute: AuthenticatedCareerSuggesterRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedFollowUpRoute: AuthenticatedFollowUpRoute,
   AuthenticatedGapsRoute: AuthenticatedGapsRoute,

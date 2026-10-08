@@ -21,7 +21,7 @@ import { ListSkeleton, Panel } from "@/components/bits";
 import * as api from "@/lib/api";
 import { qk } from "@/lib/queries";
 import { completeStep } from "@/lib/session";
-import type { Profile } from "@/lib/types";
+import type { Profile, WorkExperience, Qualification } from "@/lib/types";
 
 export const Route = createFileRoute("/_authenticated/profile")({
   head: () => ({
@@ -82,12 +82,13 @@ function ProfileForm({ initial }: { initial: Profile }) {
   const qc = useQueryClient();
   useEffect(() => setP(initial), [initial]);
 
-  const set = <K extends keyof Profile>(k: K, v: Profile[K]) => setP((x) => ({ ...x, [k]: v }));
+  const set = <K extends keyof Profile>(k: K, v: Profile[K]) =>
+    setP((x: Profile) => ({ ...x, [k]: v }));
 
   const parse = useMutation({
     mutationFn: api.parseCv,
     onSuccess: (partial) => {
-      setP((x) => ({ ...x, ...partial }));
+      setP((x: Profile) => ({ ...x, ...partial }));
       toast.success("We filled in the form from your CV. Please check it.");
     },
   });
@@ -228,11 +229,11 @@ function ProfileForm({ initial }: { initial: Profile }) {
           <p className="text-sm text-muted-foreground">No jobs added yet.</p>
         )}
         <div className="space-y-4">
-          {p.experience.map((w, i) => {
-            const upd = (patch: Partial<typeof w>) =>
+          {p.experience.map((w: WorkExperience, i: number) => {
+            const upd = (patch: Partial<WorkExperience>) =>
               set(
                 "experience",
-                p.experience.map((x, j) => (j === i ? { ...x, ...patch } : x)),
+                p.experience.map((x: WorkExperience, j: number) => (j === i ? { ...x, ...patch } : x)),
               );
             return (
               <div key={w.id} className="rounded-lg border bg-background p-4">
@@ -294,7 +295,7 @@ function ProfileForm({ initial }: { initial: Profile }) {
                   onClick={() =>
                     set(
                       "experience",
-                      p.experience.filter((_, j) => j !== i),
+                      p.experience.filter((_: WorkExperience, j: number) => j !== i),
                     )
                   }
                 >
@@ -326,11 +327,11 @@ function ProfileForm({ initial }: { initial: Profile }) {
           <p className="text-sm text-muted-foreground">No qualifications added yet.</p>
         )}
         <div className="space-y-3">
-          {p.qualifications.map((q, i) => {
-            const upd = (patch: Partial<typeof q>) =>
+          {p.qualifications.map((q: Qualification, i: number) => {
+            const upd = (patch: Partial<Qualification>) =>
               set(
                 "qualifications",
-                p.qualifications.map((x, j) => (j === i ? { ...x, ...patch } : x)),
+                p.qualifications.map((x: Qualification, j: number) => (j === i ? { ...x, ...patch } : x)),
               );
             return (
               <div
@@ -366,7 +367,7 @@ function ProfileForm({ initial }: { initial: Profile }) {
                   onClick={() =>
                     set(
                       "qualifications",
-                      p.qualifications.filter((_, j) => j !== i),
+                      p.qualifications.filter((_: Qualification, j: number) => j !== i),
                     )
                   }
                 >
