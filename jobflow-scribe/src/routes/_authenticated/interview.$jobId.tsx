@@ -18,7 +18,12 @@ import { PageTitle } from "@/components/journey";
 import { ListSkeleton, Panel } from "@/components/bits";
 import * as api from "@/lib/api";
 import { qk } from "@/lib/queries";
-import type { InterviewFeedback, InterviewSession, TranscriptTurn } from "@/lib/types";
+import type {
+  InterviewFeedback,
+  InterviewSession,
+  PerQuestionFeedback,
+  TranscriptTurn,
+} from "@/lib/types";
 
 const VoiceInterview = lazy(() => import("@/components/voice-interview"));
 const LANGS = [
@@ -344,7 +349,7 @@ function FeedbackView({ fb, onRetry }: { fb: InterviewFeedback; onRetry: () => v
               {translated && fb.translatedSummary ? fb.translatedSummary : fb.summary}
             </p>
           </Panel>
-          {fb.perQuestion.map((q, i) => (
+          {fb.perQuestion.map((q: PerQuestionFeedback, i: number) => (
             <Panel key={i} className="space-y-2 text-sm">
               <p className="font-semibold">
                 {i + 1}. {q.question}

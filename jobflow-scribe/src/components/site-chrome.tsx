@@ -20,6 +20,7 @@ import { logOut } from "@/lib/auth";
 const NAV = [
   { to: "/dashboard", label: "Dashboard" },
   { to: "/profile", label: "My journey" },
+  { to: "/career-suggester", label: "Career Suggester" },
   { to: "/jobs", label: "Jobs" },
   { to: "/follow-up", label: "Applications" },
   { to: "/interview", label: "Interview practice" },
