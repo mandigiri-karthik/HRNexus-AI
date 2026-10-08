@@ -1,8 +1,10 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
+import { useNavigate } from "@tanstack/react-router";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import {
   Sparkles,
   AlertTriangle,
-  ArrowRight,
   Briefcase,
   TrendingUp,
   Clock,
@@ -16,13 +18,24 @@ import {
   BookOpen,
   Check,
   FileCode2,
-  HelpCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import * as api from "@/lib/api";
+import { qk } from "@/lib/queries";
+import { completeStep } from "@/lib/session";
+import type { CareerOption } from "@/lib/types";
 
 // ---------------------------------------------------------------------------
 // Type Definitions
@@ -115,6 +128,7 @@ export interface AnonymisedProfile {
 }
 
 export interface CareerSuggestion {
+  id?: string;
   title: string;
   fitLevel: "strong" | "stepping_stone" | "long_term";
   summary: string;
@@ -124,12 +138,39 @@ export interface CareerSuggestion {
   salaryRange: string;
   timeframe: string;
   route: string[];
+  selected?: boolean;
 }
 
 interface GeminiResponse {
   candidates?: Array<{
     content?: { parts?: Array<{ text?: string }> };
   }>;
+}
+
+// ---------------------------------------------------------------------------
+// Helper: Map CareerOption from store/API to CareerSuggestion
+// ---------------------------------------------------------------------------
+
+export function mapCareerOptionToSuggestion(opt: CareerOption): CareerSuggestion {
+  return {
+    id: opt.id,
+    title: opt.title,
+    fitLevel: opt.fitLevel,
+    summary:
+      opt.whyItFits && opt.whyItFits.length > 0
+        ? opt.whyItFits[0].text
+        : "A tailored direction leveraging your transferable skills.",
+    whyItFits: (opt.whyItFits ?? []).map((w) => w.text),
+    transferableSkills: opt.transferableSkills ?? [],
+    upskillingRecommendations: [
+      "Review UK accreditation benchmarks",
+      "Align CV milestones with the target role",
+    ],
+    salaryRange: opt.salaryRange,
+    timeframe: opt.timeframe,
+    route: opt.route ?? [],
+    selected: opt.selected,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -324,7 +365,6 @@ const SAMPLE_PROFILES: { label: string; description: string; data: RawProfile }[
 
 // ---------------------------------------------------------------------------
 // PII Sanitization Engine
-// Strips personal and confidential details before payload dispatch
 // ---------------------------------------------------------------------------
 
 function escapeRegex(str: string): string {
@@ -341,19 +381,19 @@ function redactSensitiveText(text: string, entitiesToRedact: string[] = []): str
     "[CONFIDENTIAL_EMAIL]"
   );
 
-  // Redact phone numbers (UK, international, common mobile patterns)
+  // Redact phone numbers
   sanitized = sanitized.replace(
     /(?:\+?\d{1,3}[-.\s]?)?(?:\(?\d{2,4}\)?[-.\s]?)?\d{3,4}[-.\s]?\d{3,4}\b/g,
     "[CONFIDENTIAL_PHONE]"
   );
 
-  // Redact UK postcodes or international zip codes
+  // Redact UK postcodes
   sanitized = sanitized.replace(
     /\b[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}\b/gi,
     "[CONFIDENTIAL_POSTCODE]"
   );
 
-  // Redact known confidential entities (names, employer names, institutions, cities)
+  // Redact known confidential entities
   for (const entity of entitiesToRedact) {
     if (!entity || entity.trim().length < 3) continue;
     const escaped = escapeRegex(entity.trim());
@@ -365,7 +405,6 @@ function redactSensitiveText(text: string, entitiesToRedact: string[] = []): str
 }
 
 export function anonymiseProfile(profile: RawProfile): AnonymisedProfile {
-  // Collect all known confidential entities to scrub from free text
   const entitiesToScrub: string[] = [];
 
   const addEntity = (val?: string) => {
@@ -373,7 +412,6 @@ export function anonymiseProfile(profile: RawProfile): AnonymisedProfile {
       const clean = val.trim();
       if (clean.length >= 3 && !entitiesToScrub.includes(clean)) {
         entitiesToScrub.push(clean);
-        // Also extract distinctive root words from entity names (e.g., "Secret" from "Secret Global Financial Ltd")
         const words = clean.split(/\s+/);
         for (const w of words) {
           const stripped = w.replace(/[^A-Za-z0-9]/g, "");
@@ -416,17 +454,15 @@ export function anonymiseProfile(profile: RawProfile): AnonymisedProfile {
     addEntity(q.school);
   }
 
-  // Sort entities by length descending so longer phrases match first
   entitiesToScrub.sort((a, b) => b.length - a.length);
 
   return {
     experience: (profile.experience ?? []).map((exp, index) => {
-      // Generalize sector or employer type without disclosing actual company name
       const rawSector = exp.employerType || exp.industry;
       const fallbackSector = rawSector
         ? redactSensitiveText(rawSector, entitiesToScrub)
         : `Industry Sector #${index + 1}`;
-      
+
       const start = typeof exp.startYear === "number" ? exp.startYear : Number.parseInt(String(exp.startYear || 0), 10);
       const end = typeof exp.endYear === "number" ? exp.endYear : (exp.endYear ? Number.parseInt(String(exp.endYear), 10) : new Date().getFullYear());
       const duration = start && end && end >= start ? end - start : "1+ years";
@@ -459,25 +495,28 @@ export function anonymiseProfile(profile: RawProfile): AnonymisedProfile {
 }
 
 // ---------------------------------------------------------------------------
-// High-Fidelity Simulation / Demo Response
-// Used when no API key is provided or for offline preview
+// Simulated Suggestions Generator
 // ---------------------------------------------------------------------------
 
 function generateSimulatedSuggestions(anon: AnonymisedProfile): CareerSuggestion[] {
-  const primaryRole = anon.experience[0]?.jobTitle || "Professional";
-  const skillsList = anon.skills.slice(0, 4).join(", ") || "Analytical and operational abilities";
+  const primaryRole = anon.experience[0]?.jobTitle || "Operations Professional";
+  const skillsList = anon.skills.slice(0, 4).join(", ") || "Analytical and leadership abilities";
 
   return [
     {
+      id: "co1",
       title: `${primaryRole} Team Lead / Project Coordinator`,
       fitLevel: "strong",
       summary: `Directly builds on your proven background in ${primaryRole} while taking on higher-impact workflow leadership and project delivery.`,
       whyItFits: [
         `Directly maps to your key experience in ${anon.experience[0]?.industrySector || "your sector"}.`,
         `Capitalizes immediately on demonstrated skills in ${skillsList}.`,
-        "Low transition friction with immediate employability.",
+        "Low transition friction with immediate employability in the UK market.",
       ],
-      transferableSkills: anon.skills.slice(0, 4).length > 0 ? anon.skills.slice(0, 4) : ["Workflow Governance", "Team Collaboration", "Problem Solving", "Reporting"],
+      transferableSkills:
+        anon.skills.slice(0, 4).length > 0
+          ? anon.skills.slice(0, 4)
+          : ["Workflow Governance", "Team Collaboration", "Problem Solving", "Reporting"],
       upskillingRecommendations: [
         "Agile / Scrum Fundamentals (Scrum Master or Kanban certification)",
         "Stakeholder Communication & Executive Briefing",
@@ -489,8 +528,10 @@ function generateSimulatedSuggestions(anon: AnonymisedProfile): CareerSuggestion
         "Step 2: Complete targeted Agile delivery or workflow sprint",
         "Step 3: Secure Team Lead / Project Coordinator placement",
       ],
+      selected: false,
     },
     {
+      id: "co2",
       title: "Operations & Client Implementation Specialist",
       fitLevel: "stepping_stone",
       summary: "Combines domain problem-solving with client onboarding, process enhancement, and software implementations.",
@@ -499,7 +540,12 @@ function generateSimulatedSuggestions(anon: AnonymisedProfile): CareerSuggestion
         "Allows you to leverage systems and tools knowledge with external client accounts.",
         "Strong market growth and clear progression to Senior Implementation Consultant.",
       ],
-      transferableSkills: ["Process Optimization", "Client Onboarding", "Requirement Gathering", "Cross-functional Coordination"],
+      transferableSkills: [
+        "Process Optimization",
+        "Client Onboarding",
+        "Requirement Gathering",
+        "Cross-functional Coordination",
+      ],
       upskillingRecommendations: [
         "SaaS Implementation methodologies",
         "CRM/ERP integration overview",
@@ -511,8 +557,10 @@ function generateSimulatedSuggestions(anon: AnonymisedProfile): CareerSuggestion
         "Step 2: Shadow implementation workshops and build case studies",
         "Step 3: Step into Client Success or Technical Implementation roles",
       ],
+      selected: false,
     },
     {
+      id: "co3",
       title: "Strategic Operations / Product Operations Manager",
       fitLevel: "long_term",
       summary: "An aspirational, high-impact career path focusing on enterprise business strategy, tooling automation, and organizational scale.",
@@ -521,7 +569,12 @@ function generateSimulatedSuggestions(anon: AnonymisedProfile): CareerSuggestion
         "High earning trajectory and executive visibility.",
         "Benefits immensely from genuine frontline experience that purely theoretical managers lack.",
       ],
-      transferableSkills: ["Strategic Planning", "Data-driven Decision Making", "Change Management", "Vendor & Tool Management"],
+      transferableSkills: [
+        "Strategic Planning",
+        "Data-driven Decision Making",
+        "Change Management",
+        "Vendor & Tool Management",
+      ],
       upskillingRecommendations: [
         "Advanced Data Analytics (SQL, BI Dashboards)",
         "Product Management Foundations / Pragmatic Institute",
@@ -533,6 +586,7 @@ function generateSimulatedSuggestions(anon: AnonymisedProfile): CareerSuggestion
         "Step 2: Acquire certification in Product/Data Analytics",
         "Step 3: Transition to Strategic Operations or Product Operations Lead",
       ],
+      selected: false,
     },
   ];
 }
@@ -605,7 +659,10 @@ Strict requirements:
   if (!Array.isArray(parsed) || parsed.length === 0) {
     throw new Error("Unable to parse structured career options from Gemini response.");
   }
-  return parsed.slice(0, 3);
+  return parsed.slice(0, 3).map((item, idx) => ({
+    ...item,
+    id: item.id || `co${idx + 1}`,
+  }));
 }
 
 // ---------------------------------------------------------------------------
@@ -639,9 +696,15 @@ const fitConfig = {
 function CareerOptionCard({
   suggestion,
   index,
+  onSelect,
+  onReject,
+  isSelecting,
 }: {
   suggestion: CareerSuggestion;
   index: number;
+  onSelect: (suggestion: CareerSuggestion) => void;
+  onReject: (suggestion: CareerSuggestion) => void;
+  isSelecting?: boolean;
 }) {
   const [expanded, setExpanded] = useState(true);
   const [copied, setCopied] = useState(false);
@@ -660,7 +723,8 @@ function CareerOptionCard({
       className={cn(
         "flex flex-col rounded-2xl border bg-gradient-to-br p-6 shadow-sm transition-all duration-300 hover:shadow-md",
         fit.gradient,
-        fit.border
+        fit.border,
+        suggestion.selected && "ring-2 ring-primary border-primary shadow-md"
       )}
     >
       {/* Header & Badges */}
@@ -702,7 +766,7 @@ function CareerOptionCard({
         {suggestion.summary}
       </p>
 
-      {/* Meta Stats: Salary & Readiness */}
+      {/* Meta Stats */}
       <div className="mt-5 grid grid-cols-2 gap-3">
         <div className="rounded-xl border border-border/50 bg-background/80 p-3 shadow-2xs">
           <div className="flex items-center gap-1.5 text-muted-foreground">
@@ -804,6 +868,26 @@ function CareerOptionCard({
           </div>
         </div>
       )}
+
+      {/* Accept & Reject Action Buttons */}
+      <div className="mt-auto flex flex-col gap-2 pt-5 border-t border-border/50">
+        <Button
+          id={`career-option-select-${index + 1}`}
+          onClick={() => onSelect(suggestion)}
+          disabled={isSelecting}
+          className="w-full font-medium"
+        >
+          {suggestion.selected ? "Selected · See skills gaps" : "See skills gaps"}
+        </Button>
+        <Button
+          id={`career-option-reject-${index + 1}`}
+          variant="ghost"
+          onClick={() => onReject(suggestion)}
+          className="w-full text-muted-foreground hover:text-foreground hover:bg-muted/60"
+        >
+          Not right for me
+        </Button>
+      </div>
     </article>
   );
 }
@@ -841,7 +925,14 @@ function SkeletonCards() {
 // Main CareerSuggester Component
 // ---------------------------------------------------------------------------
 
-export function CareerSuggester() {
+export function CareerSuggester({
+  initialOptions,
+}: {
+  initialOptions?: CareerOption[];
+} = {}) {
+  const navigate = useNavigate();
+  const qc = useQueryClient();
+
   const [jsonInput, setJsonInput] = useState(() => JSON.stringify(SAMPLE_PROFILES[0].data, null, 2));
   const [apiKey, setApiKey] = useState(
     (typeof import.meta !== "undefined"
@@ -850,11 +941,79 @@ export function CareerSuggester() {
   );
   const [showApiKey, setShowApiKey] = useState(false);
   const [activeTab, setActiveTab] = useState<"input" | "preview">("input");
-  const [suggestions, setSuggestions] = useState<CareerSuggestion[] | null>(null);
-  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [suggestions, setSuggestions] = useState<CareerSuggestion[] | null>(() => {
+    if (initialOptions && initialOptions.length > 0) {
+      return initialOptions.map(mapCareerOptionToSuggestion);
+    }
+    return null;
+  });
+  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">(() => {
+    return initialOptions && initialOptions.length > 0 ? "success" : "idle";
+  });
   const [errorMsg, setErrorMsg] = useState("");
   const [jsonError, setJsonError] = useState("");
   const [usedSimulator, setUsedSimulator] = useState(false);
+
+  // Rejection modal state
+  const [rejecting, setRejecting] = useState<CareerSuggestion | null>(null);
+  const [reason, setReason] = useState("");
+
+  // Sync if initialOptions change from query cache
+  useEffect(() => {
+    if (!suggestions && initialOptions && initialOptions.length > 0) {
+      setSuggestions(initialOptions.map(mapCareerOptionToSuggestion));
+      setStatus("success");
+    }
+  }, [initialOptions, suggestions]);
+
+  // Select Option Mutation
+  const select = useMutation({
+    mutationFn: async (option: CareerSuggestion) => {
+      const optId = option.id || `co${(suggestions?.indexOf(option) ?? 0) + 1}`;
+      return api.selectCareerOption(optId);
+    },
+    onSuccess: (opt, option) => {
+      qc.invalidateQueries({ queryKey: ["careerOptions"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+      completeStep(2);
+      const targetId = opt?.id || option.id || "co1";
+      navigate({ to: "/gaps", search: { careerOptionId: targetId } });
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "Failed to select career option.");
+    },
+  });
+
+  // Reject Option Mutation
+  const reject = useMutation({
+    mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
+      return api.rejectCareerOption(id, reason);
+    },
+    onSuccess: (opts) => {
+      qc.setQueryData(qk.options.queryKey, opts);
+      if (rejecting) {
+        setSuggestions((prev) => {
+          if (!prev) return null;
+          const filtered = prev.filter(
+            (o) => (o.id || o.title) !== (rejecting.id || rejecting.title)
+          );
+          const alternative = opts.find(
+            (o) => !filtered.some((f) => f.title.toLowerCase() === o.title.toLowerCase())
+          );
+          if (alternative) {
+            filtered.push(mapCareerOptionToSuggestion(alternative));
+          }
+          return filtered;
+        });
+      }
+      setRejecting(null);
+      setReason("");
+      toast.success("Feedback recorded. Updated suggestions.");
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "Failed to record rejection.");
+    },
+  });
 
   // Validate JSON string
   const validateJson = useCallback((value: string): RawProfile | null => {
@@ -917,7 +1076,6 @@ export function CareerSuggester() {
     setErrorMsg("");
     setSuggestions(null);
 
-    // If user clicked demo or no API key is set, use the built-in intelligent engine
     if (forceDemo || !apiKey.trim()) {
       setTimeout(() => {
         const results = generateSimulatedSuggestions(anonymised);
@@ -928,7 +1086,6 @@ export function CareerSuggester() {
       return;
     }
 
-    // Call real Google Gemini API
     try {
       setUsedSimulator(false);
       const results = await fetchSuggestionsFromGemini(apiKey.trim(), anonymised);
@@ -1061,9 +1218,7 @@ export function CareerSuggester() {
                   className="h-64 font-mono text-xs leading-relaxed"
                   aria-invalid={!!jsonError}
                 />
-                {jsonError && (
-                  <p className="text-xs text-destructive">{jsonError}</p>
-                )}
+                {jsonError && <p className="text-xs text-destructive">{jsonError}</p>}
               </div>
 
               {/* API Configuration & Controls */}
@@ -1200,7 +1355,7 @@ export function CareerSuggester() {
                 )}
               </div>
               <p className="text-xs text-muted-foreground">
-                Synthesized exclusively from anonymised functional skills and career milestones.
+                Select an option to explore skills gaps and career milestones, or reject to request alternatives.
               </p>
             </div>
 
@@ -1223,21 +1378,50 @@ export function CareerSuggester() {
                 key={`${option.title}-${index}`}
                 suggestion={option}
                 index={index}
+                onSelect={(opt) => select.mutate(opt)}
+                onReject={(opt) => setRejecting(opt)}
+                isSelecting={select.isPending}
               />
             ))}
           </div>
-
-          {/* Compliance & Verification Disclaimer */}
-          <div className="rounded-xl border border-border/50 bg-muted/30 p-4 text-xs text-muted-foreground">
-            <div className="flex items-start gap-2">
-              <HelpCircle className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-              <p>
-                Career suggestions and compensation benchmarks are AI-estimated advisory indicators. All confidential person records remained protected during synthesis. Always verify qualification prerequisites and regulatory certifications with prospective hiring managers.
-              </p>
-            </div>
-          </div>
         </section>
       )}
+
+      {/* Reject Reason Dialog */}
+      <Dialog open={!!rejecting} onOpenChange={(v) => !v && setRejecting(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Why isn't {rejecting?.title} right for you?</DialogTitle>
+            <DialogDescription>
+              A short reason helps us suggest a more suitable career direction.
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="e.g. I don't want shift work, requires too much travel, or looking for higher technical depth"
+            aria-label="Reason for rejecting career option"
+            className="mt-2 text-xs"
+          />
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => setRejecting(null)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={!reason.trim() || reject.isPending}
+              onClick={() => {
+                if (rejecting) {
+                  const optId =
+                    rejecting.id || `co${(suggestions?.indexOf(rejecting) ?? 0) + 1}`;
+                  reject.mutate({ id: optId, reason });
+                }
+              }}
+            >
+              {reject.isPending ? "Finding another…" : "Suggest another"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
