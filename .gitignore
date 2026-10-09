@@ -218,3 +218,10 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# The Python `lib/` rule above would hide the frontend's source folder
+!jobflow-scribe/src/lib/
+
+# Real user data and Google credentials must never be committed
+backend/data/
+auth.json
