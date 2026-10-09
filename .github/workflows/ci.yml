@@ -1,0 +1,60 @@
+# Runs on every pull request and every push to main.
+# It checks that the frontend builds and that the backend starts against a real database.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  frontend:
+    name: Frontend (lint and build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+
+  backend:
+    name: Backend (starts and creates its tables)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    # A throwaway PostgreSQL that exists only while this job runs.
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: ci-password
+          POSTGRES_DB: hrnexus
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    # Placeholder values for CI only. Real secrets never go in this file.
+    env:
+      JWT_SECRET: ci-only-not-a-real-secret
+      GOOGLE_CLIENT_ID: ci-placeholder
+      DATABASE_URL: postgresql://postgres:ci-password@localhost:5432/hrnexus
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --locked
+      - name: App loads
+        run: uv run python -c "import app.main"
+      - name: Database connects and tables are created
+        run: uv run python -c "from app.db import open_db, close_db; open_db(); close_db()"
