@@ -8,7 +8,6 @@ from dotenv import load_dotenv
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BACKEND_DIR / ".env")
 DATABASE_URL = os.environ["DATABASE_URL"]
-ELEVENLABS_API_KEY = os.environ["ELEVENLABS_API_KEY"]
 # Required. The app refuses to start without them.
 JWT_SECRET = os.environ["JWT_SECRET"]
 GOOGLE_CLIENT_ID = os.environ["GOOGLE_CLIENT_ID"]

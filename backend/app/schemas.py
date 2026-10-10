@@ -56,7 +56,4 @@ class TextIntakeRequest(BaseModel):
 class IntakeResponse(BaseModel):
     source: str
     text: str
-    # Only filled in for voice: the detected language and what was actually said.
-    language: str | None = None
-    original_text: str | None = None
 
