@@ -57,3 +57,29 @@ class IntakeResponse(BaseModel):
     source: str
     text: str
 
+class WorkExperience(BaseModel):
+    job_title: str
+    employer: str
+    country: str | None
+    start_date: str | None
+    end_date: str | None
+    responsibilities: list[str]
+
+
+class Education(BaseModel):
+    qualification: str
+    institution: str
+    country: str | None
+    year_completed: int | None
+
+
+class Profile(BaseModel):
+    full_name: str | None
+    summary: str
+    skills: list[str]
+    languages: list[str]
+    work_experience: list[WorkExperience]
+    education: list[Education]
+    certifications: list[str]
+
+
