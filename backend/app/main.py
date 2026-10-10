@@ -5,9 +5,12 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+import logging
 from app import db
 from app.config import FRONTEND_ORIGINS
-from app.routers import auth
+from app.routers import auth, intake
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
 
 @asynccontextmanager
@@ -29,6 +32,7 @@ app.add_middleware(
 )
 
 app.include_router(auth.router)
+app.include_router(intake.router)
 
 
 @app.get("/api/health")
