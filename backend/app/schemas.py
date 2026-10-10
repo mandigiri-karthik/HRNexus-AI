@@ -41,3 +41,22 @@ class UserResponse(BaseModel):
 class AuthResponse(BaseModel):
     token: str
     user: UserResponse
+
+class TextIntakeRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=5000)
+
+    @field_validator("text")
+    @classmethod
+    def text_is_not_blank(cls, text):
+        if not text.strip():
+            raise ValueError("Please write something about yourself.")
+        return text.strip()
+
+
+class IntakeResponse(BaseModel):
+    source: str
+    text: str
+    # Only filled in for voice: the detected language and what was actually said.
+    language: str | None = None
+    original_text: str | None = None
+
