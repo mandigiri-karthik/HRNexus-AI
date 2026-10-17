@@ -42,7 +42,7 @@ def cv_intake(
             resume_text = extract_pdf_text(data)
             # A new CV starts the conversation again.
             intake_graph.checkpointer.delete_thread(user["id"])
-            result = intake_graph.invoke({"resume_text": resume_text}, config)
+            result = intake_graph.invoke({"resume_text": resume_text, "cv_name": file.filename}, config)
         else:
             if not intake_graph.get_state(config).next:
                 raise HTTPException(409, "Please upload your CV first.")
@@ -69,20 +69,30 @@ def cv_intake(
 
 @router.get("/cv")
 def cv_intake_state(user=Depends(get_current_user)):
-    """Where the user's CV intake stands, e.g. to show the same question again after a page reload."""
+    """Where the user's CV intake stands, with the whole conversation so far, e.g. to redraw it after a page reload."""
     state = intake_graph.get_state({"configurable": {"thread_id": user["id"]}})
+    history = conversation(state.values)
     pending = [item.value for task in state.tasks for item in task.interrupts]
     if pending:
-        return question_response(pending[0], state.values["profile"])
+        return {**question_response(pending[0], state.values["profile"]), "messages": history}
     if state.next:
         # A Bedrock error stopped the conversation between questions. Sending any answer
         # to POST /cv (e.g. an empty `text`) carries on and returns the next question.
-        return {"status": "retry", "profile": state.values.get("profile")}
+        return {"status": "retry", "profile": state.values.get("profile"), "messages": history}
     saved = store.find_profile(user["id"])
     if saved:
-        return {"status": "complete", "profile": saved["data"]}
-    return {"status": "not_started"}
+        return {"status": "complete", "profile": saved["data"], "messages": history}
+    return {"status": "not_started", "messages": []}
 
 def question_response(question, profile):
     """The next question, with the draft profile so far for the side panel."""
     return {"status": "question", **question, "profile": profile}
+
+def conversation(values):
+    """The chat so far, oldest first: the uploaded CV, then each question and answer."""
+    history = []
+    if values.get("cv_name"):
+        history.append({"from": "you", "file": {"name": values["cv_name"]}})
+    for message in values.get("messages", []):
+        history.append({"from": "supervisor" if message.type == "ai" else "you", "text": message.content})
+    return history

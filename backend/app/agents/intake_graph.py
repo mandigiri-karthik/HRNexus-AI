@@ -59,6 +59,7 @@ class Question(BaseModel):
 
 class IntakeState(TypedDict):
     resume_text: str
+    cv_name: str | None
     profile: dict
     field_status: dict[str, str]
     attempts: dict[str, int]
