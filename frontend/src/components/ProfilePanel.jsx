@@ -19,7 +19,7 @@ function Row({ label, value, pending }) {
 }
 
 // The "Search profile" panel beside the chat. Fills in as the intake answers come back.
-export default function ProfilePanel({ profile, askingField, complete, onConfirm }) {
+export default function ProfilePanel({ profile, askingField, complete, onConfirm, open, onClose }) {
   const basics = profile.basics || {};
   const preferences = profile.preferences || {};
   const skills = profile.skills || [];
@@ -31,11 +31,12 @@ export default function ProfilePanel({ profile, askingField, complete, onConfirm
   if (preferences.needs_visa_sponsorship === false) visa = "Not needed";
 
   return (
-    <aside className="profile-panel" aria-label="Search profile">
+    <aside className={`profile-panel${open ? " profile-panel--open" : ""}`} aria-label="Search profile">
       <div>
         <div className="profile-panel__head">
           <h2 className="text-heading-m">Search profile</h2>
           <Chip tone={complete ? "accent" : "amber"}>{complete ? "Ready" : "Draft"}</Chip>
+                    <Button variant="ghost" icon="x" className="profile-panel__close" onClick={onClose} aria-label="Close profile" />
         </div>
         <p className="text-body-s profile-panel__muted">Built from your CV and your answers.</p>
       </div>

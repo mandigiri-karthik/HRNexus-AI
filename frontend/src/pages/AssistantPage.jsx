@@ -47,6 +47,7 @@ export default function AssistantPage() {
   const navigate = useNavigate();
   const { status, messages, busy, error } = intake;
   const [draft, setDraft] = useState("");
+  const [showProfile, setShowProfile] = useState(false);
   const fileInput = useRef(null);
   const chatEnd = useRef(null);
   const firstName = session.user.name.split(" ")[0];
@@ -79,12 +80,17 @@ export default function AssistantPage() {
 
   const lastIsFile = messages.at(-1)?.file;
 
-    return (
+  return (
     <div className="assistant-layout">
       <div className="assistant">
         <header className="assistant__header">
           <h1 className="text-heading-m">Assistant</h1>
           <Chip>Onboarding</Chip>
+          {intake.profile && (
+            <Button variant="ghost" icon="user" className="assistant__profile-toggle" onClick={() => setShowProfile(true)}>
+              Profile
+            </Button>
+          )}
           <Button variant="secondary" className="assistant__new" onClick={chooseFile} disabled={busy}>
             New session
           </Button>
@@ -165,8 +171,11 @@ export default function AssistantPage() {
           askingField={intake.question?.field}
           complete={status === "complete"}
           onConfirm={() => navigate("/jobs")}
+          open={showProfile}
+          onClose={() => setShowProfile(false)}
         />
       )}
+
     </div>
   );
 }

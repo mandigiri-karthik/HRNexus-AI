@@ -319,7 +319,7 @@
 .option:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* Assistant layout: chat on the left, profile panel on the right */
-.assistant-layout { display: flex; height: 100vh; }
+.assistant-layout { display: flex; height: 100vh; height: 100dvh; }
 
 /* Search profile panel */
 .profile-panel {
@@ -347,3 +347,64 @@
 .profile-panel__value { text-align: right; color: var(--text-primary); }
 .profile-panel__value--pending { color: var(--status-amber); }
 .profile-panel__confirm { margin-top: auto; justify-content: center; }
+
+/* Responsive: desktop by default, tablet and phone below */
+.assistant__profile-toggle,
+.profile-panel__close { display: none; }
+
+/* Tablet and phone: the profile panel becomes a drawer */
+@media (max-width: 1099px) {
+  .assistant__profile-toggle { display: inline-flex; margin-left: auto; }
+  .assistant__new { margin-left: 0; }
+  .profile-panel { display: none; }
+  .profile-panel--open {
+    display: flex;
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 20;
+    width: min(360px, 100%);
+    box-shadow: var(--shadow-card);
+  }
+  .profile-panel__close { display: inline-flex; margin-left: auto; }
+}
+
+/* Phone: the sidebar becomes a bottom tab bar, spacing tightens */
+@media (max-width: 767px) {
+  .app-layout { flex-direction: column; }
+
+  .sidebar {
+    position: fixed;
+    top: auto;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 10;
+    flex-direction: row;
+    width: auto;
+    height: 64px;
+    padding: 0 var(--space-8);
+    border-right: 0;
+    border-top: 1px solid var(--border-default);
+  }
+  .sidebar__brand,
+  .sidebar__section,
+  .sidebar__agents,
+  .sidebar__user { display: none; }
+  .sidebar__nav { flex: 1; flex-direction: row; justify-content: space-around; }
+
+  .nav-item { flex-direction: column; gap: 2px; height: auto; padding: 6px 8px; }
+  .nav-item__label { flex: none; font-size: 11px; line-height: 16px; }
+  .nav-item__count { display: none; }
+
+  /* Leave room for the tab bar */
+  .assistant-layout { height: calc(100dvh - 64px); }
+
+  .assistant__header { padding: var(--space-12) var(--space-16); }
+  .assistant__header .chip { display: none; }
+  .assistant__thread { padding: var(--space-16); }
+  .assistant__composer { width: calc(100% - 2 * var(--space-16)); margin-bottom: var(--space-12); }
+  .question-card { margin-left: 0; }
+  .profile-panel--open { width: 100%; }
+}
