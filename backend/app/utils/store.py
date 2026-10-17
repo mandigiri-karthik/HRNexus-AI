@@ -3,13 +3,13 @@
 import uuid
 
 from psycopg.errors import UniqueViolation
+from psycopg.types.json import Jsonb
 
-from app.db import pool
+from app.db.db import pool
 
 
 def normalize_email(email):
     return email.strip().lower()
-
 
 def find_user_by_email(email):
     with pool.connection() as conn:
@@ -17,11 +17,9 @@ def find_user_by_email(email):
             "SELECT * FROM users WHERE email = %s", (normalize_email(email),)
         ).fetchone()
 
-
 def find_user_by_id(user_id):
     with pool.connection() as conn:
         return conn.execute("SELECT * FROM users WHERE id = %s", (user_id,)).fetchone()
-
 
 def create_user(name, email, password_hash=None, provider="password"):
     """Save a new user. Returns None if the email is already registered."""
@@ -37,3 +35,22 @@ def create_user(name, email, password_hash=None, provider="password"):
             ).fetchone()
     except UniqueViolation:
         return None
+    
+def save_profile(user_id, source, data):
+    """Save the user's profile, replacing any earlier one."""
+    with pool.connection() as conn:
+        return conn.execute(
+            """
+            INSERT INTO profiles (user_id, source, data)
+            VALUES (%s, %s, %s)
+            ON CONFLICT (user_id) DO UPDATE
+            SET source = EXCLUDED.source, data = EXCLUDED.data, updated_at = now()
+            RETURNING *
+            """,
+            (user_id, source, Jsonb(data)),
+        ).fetchone()
+
+def find_profile(user_id):
+    with pool.connection() as conn:
+        return conn.execute("SELECT * FROM profiles WHERE user_id = %s", (user_id,)).fetchone()
+
