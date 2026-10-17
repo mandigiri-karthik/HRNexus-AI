@@ -225,3 +225,4 @@ __marimo__/
 # Real user data and Google credentials must never be committed
 backend/data/
 auth.json
+test.pdf
