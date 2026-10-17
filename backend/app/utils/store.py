@@ -5,12 +5,11 @@ import uuid
 from psycopg.errors import UniqueViolation
 from psycopg.types.json import Jsonb
 
-from app.db import pool
+from app.db.db import pool
 
 
 def normalize_email(email):
     return email.strip().lower()
-
 
 def find_user_by_email(email):
     with pool.connection() as conn:
@@ -18,11 +17,9 @@ def find_user_by_email(email):
             "SELECT * FROM users WHERE email = %s", (normalize_email(email),)
         ).fetchone()
 
-
 def find_user_by_id(user_id):
     with pool.connection() as conn:
         return conn.execute("SELECT * FROM users WHERE id = %s", (user_id,)).fetchone()
-
 
 def create_user(name, email, password_hash=None, provider="password"):
     """Save a new user. Returns None if the email is already registered."""

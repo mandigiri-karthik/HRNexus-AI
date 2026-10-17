@@ -50,6 +50,8 @@ jobs:
       JWT_SECRET: ci-only-not-a-real-secret
       GOOGLE_CLIENT_ID: ci-placeholder
       DATABASE_URL: postgresql://postgres:ci-password@localhost:5432/hrnexus
+      AWS_REGION: eu-west-2
+      BEDROCK_MODEL_ID: ci-placeholder
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
@@ -57,4 +59,4 @@ jobs:
       - name: App loads
         run: uv run python -c "import app.main"
       - name: Database connects and tables are created
-        run: uv run python -c "from app.db import open_db, close_db; open_db(); close_db()"
+        run: uv run python -c "from app.db.db import open_db, close_db; open_db(); close_db()"

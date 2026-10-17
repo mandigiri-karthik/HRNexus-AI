@@ -11,6 +11,8 @@ DATABASE_URL = os.environ["DATABASE_URL"]
 # Required. The app refuses to start without them.
 JWT_SECRET = os.environ["JWT_SECRET"]
 GOOGLE_CLIENT_ID = os.environ["GOOGLE_CLIENT_ID"]
+AWS_REGION = os.environ["AWS_REGION"]
+BEDROCK_MODEL_ID = os.environ["BEDROCK_MODEL_ID"]
 
 # Optional, with defaults that suit local development.
 TOKEN_LIFETIME_DAYS = int(os.getenv("TOKEN_LIFETIME_DAYS", "7"))

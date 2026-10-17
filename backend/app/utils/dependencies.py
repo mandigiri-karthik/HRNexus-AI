@@ -3,8 +3,8 @@
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from app import store
-from app.security import read_token
+from app.utils import store
+from app.utils.security import read_token
 
 bearer = HTTPBearer(auto_error=False)
 

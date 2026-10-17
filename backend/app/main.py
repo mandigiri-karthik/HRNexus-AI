@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 import logging
-from app import db
+from app.db import db
 from app.config import FRONTEND_ORIGINS
 from app.routers import auth, intake
 
@@ -38,3 +38,4 @@ app.include_router(intake.router)
 @app.get("/api/health")
 def health():
     return {"status": "ok"}
+

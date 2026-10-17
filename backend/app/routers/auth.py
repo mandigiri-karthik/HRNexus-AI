@@ -2,16 +2,16 @@
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from app import store
-from app.dependencies import get_current_user
-from app.schemas import (
+from app.utils import store
+from app.utils.dependencies import get_current_user
+from app.schemas.signInOut_schema import (
     AuthResponse,
     GoogleLogInRequest,
     LogInRequest,
     SignUpRequest,
     UserResponse,
 )
-from app.security import create_token, hash_password, verify_google_token, verify_password
+from app.utils.security import create_token, hash_password, verify_google_token, verify_password
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
