@@ -6,6 +6,9 @@ import App from "./App.jsx";
 import { GOOGLE_CLIENT_ID } from "./config";
 import AuthProvider from "./context/AuthProvider.jsx";
 import "./styles/index.css";
+import "./styles/tokens.css";
+import "./styles/typography.css";
+import "./styles/components.css";
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>

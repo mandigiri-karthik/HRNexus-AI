@@ -1,13 +1,13 @@
 :root {
-  --background: #f5f6f8;
-  --surface: #ffffff;
-  --text: #16181d;
-  --muted: #5f6673;
-  --border: #d8dce3;
-  --primary: #2f5fe0;
-  --primary-hover: #244cc0;
-  --error: #b42318;
-  --error-background: #fdecea;
+  --background: var(--bg-canvas);
+  --surface: var(--bg-surface);
+  --text: var(--text-primary);
+  --muted: var(--text-secondary);
+  --border: var(--border-default);
+  --primary: var(--accent-default);
+  --primary-hover: var(--accent-hover);
+  --error: var(--status-red);
+  --error-background: var(--status-red-soft);
 }
 
 * {
@@ -16,7 +16,7 @@
 
 body {
   margin: 0;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-sans);
   background: var(--background);
   color: var(--text);
   line-height: 1.5;

@@ -11,16 +11,16 @@ function errorMessage(data, status) {
 }
 
 async function request(path, { method = "GET", body, token } = {}) {
+  const isForm = body instanceof FormData;
   const headers = {};
-  if (body) headers["Content-Type"] = "application/json";
+  if (body && !isForm) headers["Content-Type"] = "application/json";
   if (token) headers["Authorization"] = `Bearer ${token}`;
-
   let response;
   try {
     response = await fetch(`${API_URL}${path}`, {
       method,
       headers,
-      body: body ? JSON.stringify(body) : undefined,
+      body: isForm ? body : body ? JSON.stringify(body) : undefined,
     });
   } catch {
     throw new Error("Could not reach the server. Please check your connection.");
@@ -47,3 +47,20 @@ export const googleLogIn = (credential) =>
 
 // Returns the logged-in user. Needs the token from one of the calls above.
 export const getCurrentUser = (token) => request("/api/auth/me", { token });
+
+export const getIntake = (token) => request("/api/intake/cv", { token });
+
+export const uploadCv = (token, file) => {
+  const form = new FormData();
+  form.append("file", file);
+  return request("/api/intake/cv", { method: "POST", body: form, token });
+};
+
+// answer is { selected: ["label", ...] }, { text: "..." } or { skip: true }.
+export const answerIntake = (token, answer) => {
+  const form = new FormData();
+  (answer.selected || []).forEach((label) => form.append("selected", label));
+  if (answer.text !== undefined) form.append("text", answer.text);
+  if (answer.skip) form.append("skip", "true");
+  return request("/api/intake/cv", { method: "POST", body: form, token });
+};
