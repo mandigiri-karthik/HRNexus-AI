@@ -49,13 +49,13 @@ export default function AssistantPage() {
   const [draft, setDraft] = useState("");
   const [showProfile, setShowProfile] = useState(false);
   const fileInput = useRef(null);
-  const chatEnd = useRef(null);
+  const chatBox = useRef(null);
   const firstName = session.user.name.split(" ")[0];
   const canAnswer = status === "question" && !busy;
 
   // Keep the newest message in view.
   useEffect(() => {
-    chatEnd.current?.scrollIntoView({ behavior: "smooth" });
+    chatBox.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, busy]);
 
   const chooseFile = () => fileInput.current.click();
@@ -96,7 +96,7 @@ export default function AssistantPage() {
           </Button>
         </header>
 
-        <div className="assistant__chat">
+        <div className="assistant__chat" ref={chatBox}>
           <div className="assistant__thread">
             {status === "loading" && <p className="text-body-s chat-muted">Loading…</p>}
             {status === "not_started" && (
@@ -134,7 +134,6 @@ export default function AssistantPage() {
                 {error}
               </p>
             )}
-            <div ref={chatEnd} />
           </div>
         </div>
 
