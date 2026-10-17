@@ -26,7 +26,7 @@ export default function DashboardPage() {
   }, [session.token, endSession]);
 
   return (
-    <main className="auth-page">
+    <div className="auth-page">
       <section className="card">
         <h1>Welcome, {user.name}</h1>
         <p className="muted">Signed in as {user.email}</p>
@@ -39,6 +39,6 @@ export default function DashboardPage() {
           Log out
         </button>
       </section>
-    </main>
+    </div>
   );
 }
