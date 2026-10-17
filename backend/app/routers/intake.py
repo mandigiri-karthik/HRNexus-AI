@@ -62,7 +62,27 @@ def cv_intake(
         raise HTTPException(503, "The assistant is unavailable right now. Please try again in a moment.")
 
     if "__interrupt__" in result:
-        return {"status": "question", **result["__interrupt__"][0].value}
+        return question_response(result["__interrupt__"][0].value, result["profile"])
     store.save_profile(user["id"], "cv", result["profile"])
     logger.info("CV intake complete for user %s", user["id"])
     return {"status": "complete", "profile": result["profile"]}
+
+@router.get("/cv")
+def cv_intake_state(user=Depends(get_current_user)):
+    """Where the user's CV intake stands, e.g. to show the same question again after a page reload."""
+    state = intake_graph.get_state({"configurable": {"thread_id": user["id"]}})
+    pending = [item.value for task in state.tasks for item in task.interrupts]
+    if pending:
+        return question_response(pending[0], state.values["profile"])
+    if state.next:
+        # A Bedrock error stopped the conversation between questions. Sending any answer
+        # to POST /cv (e.g. an empty `text`) carries on and returns the next question.
+        return {"status": "retry", "profile": state.values.get("profile")}
+    saved = store.find_profile(user["id"])
+    if saved:
+        return {"status": "complete", "profile": saved["data"]}
+    return {"status": "not_started"}
+
+def question_response(question, profile):
+    """The next question, with the draft profile so far for the side panel."""
+    return {"status": "question", **question, "profile": profile}
