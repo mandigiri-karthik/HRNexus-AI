@@ -1,180 +1,71 @@
-import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import AgentAvatar from "../components/AgentAvatar";
-import Button from "../components/Button";
 import Chip from "../components/Chip";
 import Icon from "../components/Icon";
-import { useAuth } from "../context/AuthContext";
-import useIntake from "../hooks/useIntake";
-import QuestionCard from "../components/QuestionCard";
-import { useNavigate } from "react-router-dom";
-import ProfilePanel from "../components/ProfilePanel";
+import SearchProfileTab from "../components/SearchProfileTab";
 
-function formatSize(bytes) {
-  return bytes < 1024 * 1024 ? `${Math.round(bytes / 1024)} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-}
+const TABS = [
+  { id: "profile", label: "Search profile", icon: "user" },
+  { id: "assistant", label: "Assistant", icon: "message" },
+];
 
-function Message({ message }) {
-  if (message.from === "supervisor") {
-    return (
-      <div className="chat-message">
-        <AgentAvatar agent="supervisor" />
-        <div className="chat-message__body">
-          <span className="text-label-s">Supervisor</span>
-          <p className="text-body-m">{message.text}</p>
-        </div>
-      </div>
-    );
-  }
-  if (message.file) {
-    return (
-      <div className="chat-file">
-        <span className="chat-file__icon">
-          <Icon name="file-text" />
-        </span>
-        <div>
-          <p className="text-body-m-medium">{message.file.name}</p>
-          <p className="text-body-s chat-muted">PDF{message.file.size ? ` · ${formatSize(message.file.size)}` : ""}</p>
-        </div>
-      </div>
-    );
-  }
-  return <p className="chat-bubble text-body-m">{message.text}</p>;
+// Tab 2 for now: a placeholder for the chat assistant.
+function AssistantComingSoon() {
+  return (
+    <div className="empty-card">
+      <AgentAvatar agent="supervisor" />
+      <p className="text-heading-m">Your job hunt assistant is coming soon</p>
+      <p className="text-body-m chat-muted">
+        Soon you'll be able to ask things like "Which jobs did I apply for, and where do they stand?" and update them by chatting.
+      </p>
+      <Chip tone="amber">Coming soon</Chip>
+    </div>
+  );
 }
 
 export default function AssistantPage() {
-  const { session, endSession } = useAuth();
-  const intake = useIntake(session.token, endSession);
-  const navigate = useNavigate();
-  const { status, messages, busy, error } = intake;
-  const [draft, setDraft] = useState("");
-  const [showProfile, setShowProfile] = useState(false);
-  const fileInput = useRef(null);
-  const chatBox = useRef(null);
-  const firstName = session.user.name.split(" ")[0];
-  const canAnswer = status === "question" && !busy;
+  const [params, setParams] = useSearchParams();
+  const active = params.get("tab") === "assistant" ? "assistant" : "profile";
 
-  // Keep the newest message in view.
-  useEffect(() => {
-    chatBox.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, busy]);
+  // The active tab lives in the URL, so a refresh or a shared link opens the same tab.
+  const select = (id) => setParams(id === "profile" ? {} : { tab: id }, { replace: true });
 
-  const chooseFile = () => fileInput.current.click();
-
-  const pickFile = (event) => {
-    const file = event.target.files[0];
-    event.target.value = ""; // lets the same file be picked again
-    if (file) intake.upload(file);
-  };
-
-  const send = (event) => {
-    event.preventDefault();
-    if (!canAnswer || !draft.trim()) return;
-    intake.answer({ text: draft.trim() });
-    setDraft("");
-  };
-
-  // Enter sends; Shift + Enter makes a new line.
+  // Left and right arrow keys move between tabs, as screen-reader users expect.
   const onKeyDown = (event) => {
-    if (event.key === "Enter" && !event.shiftKey) send(event);
+    if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
+    const index = TABS.findIndex((tab) => tab.id === active);
+    const next = TABS[(index + (event.key === "ArrowRight" ? 1 : -1) + TABS.length) % TABS.length];
+    select(next.id);
+    document.getElementById(`tab-${next.id}`)?.focus();
   };
-
-  const lastIsFile = messages.at(-1)?.file;
 
   return (
-    <div className="assistant-layout">
-      <div className="assistant">
-        <header className="assistant__header">
-          <h1 className="text-heading-m">Assistant</h1>
-          <Chip>Onboarding</Chip>
-          {intake.profile && (
-            <Button variant="ghost" icon="user" className="assistant__profile-toggle" onClick={() => setShowProfile(true)}>
-              Profile
-            </Button>
-          )}
-          <Button variant="secondary" className="assistant__new" onClick={chooseFile} disabled={busy}>
-            New session
-          </Button>
-        </header>
-
-        <div className="assistant__chat" ref={chatBox}>
-          <div className="assistant__thread">
-            {status === "loading" && <p className="text-body-s chat-muted">Loading…</p>}
-            {status === "not_started" && (
-              <Message
-                message={{
-                  from: "supervisor",
-                  text: `Hi ${firstName} — I'm your job hunt supervisor. Attach your CV and I'll turn it into a search profile.`,
-                }}
-              />
-            )}
-            {messages.map((message) => (
-              <Message key={message.id} message={message} />
-            ))}
-            {status === "question" && !busy && intake.question && (
-              <QuestionCard
-                key={messages.at(-1)?.id}
-                question={intake.question}
-                busy={busy}
-                onAnswer={intake.answer}
-              />
-            )}
-            {busy && (
-              <p className="text-body-s chat-muted">{lastIsFile ? "Reading your CV…" : "Supervisor is thinking…"}</p>
-            )}
-            {status === "retry" && !busy && (
-              <div className="chat-notice">
-                <p className="text-body-m chat-muted">Something interrupted the conversation.</p>
-                <Button variant="secondary" onClick={intake.retry}>
-                  Try again
-                </Button>
-              </div>
-            )}
-            {error && (
-              <p className="chat-error text-body-s" role="alert">
-                {error}
-              </p>
-            )}
-          </div>
-        </div>
-
-        <form className="assistant__composer" onSubmit={send}>
-          <textarea
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            onKeyDown={onKeyDown}
-            placeholder={
-              canAnswer
-                ? "Reply to Supervisor in your own words…"
-                : status === "complete"
-                  ? "Your profile is done. Attach a new CV to start over."
-                  : "Attach your CV to start"
-            }
-            disabled={!canAnswer}
-            aria-label="Your reply"
-          />
-          <div className="assistant__composer-actions">
-            <Button variant="ghost" icon="paperclip" onClick={chooseFile} disabled={busy}>
-              Attach CV
-            </Button>
-            <button type="submit" className="assistant__send" disabled={!canAnswer || !draft.trim()} aria-label="Send">
-              <Icon name="arrow-up" />
+    <div className="assistant-page">
+      <header className="assistant-page__header">
+        <h1 className="text-heading-m">Onboarding</h1>
+        <div className="tabs" role="tablist" aria-label="Assistant sections" onKeyDown={onKeyDown}>
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              id={`tab-${tab.id}`}
+              type="button"
+              role="tab"
+              className="tab"
+              aria-selected={active === tab.id}
+              aria-controls={`panel-${tab.id}`}
+              tabIndex={active === tab.id ? 0 : -1}
+              onClick={() => select(tab.id)}
+            >
+              <Icon name={tab.icon} size={16} />
+              {tab.label}
             </button>
-          </div>
-        </form>
-        <input ref={fileInput} type="file" accept="application/pdf" hidden onChange={pickFile} />
+          ))}
+        </div>
+      </header>
+
+      <div id={`panel-${active}`} role="tabpanel" aria-labelledby={`tab-${active}`} className="assistant-page__panel">
+        {active === "profile" ? <SearchProfileTab /> : <AssistantComingSoon />}
       </div>
-
-      {intake.profile && (
-        <ProfilePanel
-          profile={intake.profile}
-          askingField={intake.question?.field}
-          complete={status === "complete"}
-          onConfirm={() => navigate("/jobs")}
-          open={showProfile}
-          onClose={() => setShowProfile(false)}
-        />
-      )}
-
     </div>
   );
 }

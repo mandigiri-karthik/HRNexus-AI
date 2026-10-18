@@ -48,19 +48,20 @@ export const googleLogIn = (credential) =>
 // Returns the logged-in user. Needs the token from one of the calls above.
 export const getCurrentUser = (token) => request("/api/auth/me", { token });
 
-export const getIntake = (token) => request("/api/intake/cv", { token });
+// Profile: built from a CV, then edited by the user.
+// Each returns { profile, source, missing, updated_at }; missing lists required fields still empty.
+export const getProfile = (token) => request("/api/profile", { token });
 
-export const uploadCv = (token, file) => {
+export const uploadProfileCv = (token, file) => {
   const form = new FormData();
   form.append("file", file);
-  return request("/api/intake/cv", { method: "POST", body: form, token });
+  return request("/api/profile/cv", { method: "POST", body: form, token });
 };
 
-// answer is { selected: ["label", ...] }, { text: "..." } or { skip: true }.
-export const answerIntake = (token, answer) => {
-  const form = new FormData();
-  (answer.selected || []).forEach((label) => form.append("selected", label));
-  if (answer.text !== undefined) form.append("text", answer.text);
-  if (answer.skip) form.append("skip", "true");
-  return request("/api/intake/cv", { method: "POST", body: form, token });
-};
+export const saveProfile = (token, profile) => request("/api/profile", { method: "PUT", body: profile, token });
+
+// Scout's saved results: { status: "not_run" } or { status: "done", jobs, searched_roles, searched_at }.
+export const getJobs = (token) => request("/api/jobs", { token });
+
+// Runs Scout (once per account; about 10–20 seconds). Returns the same shape as getJobs.
+export const runScout = (token) => request("/api/jobs/search", { method: "POST", token });

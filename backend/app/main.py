@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import logging
 from app.db import db
 from app.config import FRONTEND_ORIGINS
-from app.routers import auth, intake
+from app.routers import auth, profile, jobs
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
@@ -32,7 +32,8 @@ app.add_middleware(
 )
 
 app.include_router(auth.router)
-app.include_router(intake.router)
+app.include_router(profile.router)
+app.include_router(jobs.router)
 
 
 @app.get("/api/health")
