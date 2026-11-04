@@ -7,6 +7,7 @@ import SignupPage from "./pages/SignupPage";
 import AppLayout from "./components/AppLayout";
 import ComingSoonPage from "./pages/ComingSoonPage";
 import AssistantPage from "./pages/AssistantPage";
+import JobsPage from "./pages/JobsPage";
 
 // The list of pages and who may see each one.
 export default function App() {
@@ -17,7 +18,7 @@ export default function App() {
       <Route path="*" element={<Navigate to="/" replace />} />
       <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
         <Route path="/" element={<AssistantPage />} />
-        <Route path="/jobs" element={<ComingSoonPage title="Jobs" />} />
+        <Route path="/jobs" element={<JobsPage />} />
         <Route path="/review" element={<ComingSoonPage title="Review" />} />
         <Route path="/tracker" element={<ComingSoonPage title="Tracker" />} />
         <Route path="/profile" element={<DashboardPage />} />
